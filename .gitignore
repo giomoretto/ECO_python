@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+
+# Virtual environment
+env/
+
+# Compiled objects
+*.o
+*.so
+*.dylib
+
+# Generated C code from acados
+c_generated_code/
+eco/formulation/c_generated_code/
+
+# acados JSON
+acados_sim.json
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+
+# Images (generated plots)
+*.png
