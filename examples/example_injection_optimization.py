@@ -9,7 +9,7 @@ import sys
 sys.path.insert(0, '/home/morettog/projects/phd/python_code')
 
 import numpy as np
-from eco.model.model_parameters import ModelParameters
+from eco.model_casadi.model_parameters import ModelParameters
 from eco.simulation.par_op_def import OperatingPoint
 from eco.simulation.complete_simulation import complete_simulation
 from eco.formulation.scale_unscale import scale_unscale

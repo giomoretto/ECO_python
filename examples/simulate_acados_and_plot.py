@@ -13,7 +13,7 @@ for lib in ['libblasfeo.so', 'libhpipm.so', 'libqpOASES_e.so', 'libacados.so']:
     ctypes.CDLL(os.path.join(acados_lib, lib), mode=ctypes.RTLD_GLOBAL)
 
 import numpy as np
-from eco.model.model_parameters import ModelParameters
+from eco.model_casadi.model_parameters import ModelParameters
 from eco.simulation.par_op_def import OperatingPoint
 from eco.simulation.acados_simulation import acados_simulation
 from examples.utils import plot_results

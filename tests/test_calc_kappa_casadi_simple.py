@@ -13,7 +13,7 @@ except ImportError:
     print("✗ CasADi not available")
     sys.exit(1)
 
-from eco.model.subfunctions.in_cylinder import calc_kappa, calc_kappa_casadi
+from eco.model_casadi.subfunctions.in_cylinder import calc_kappa, calc_kappa_casadi
 
 print("\n" + "="*60)
 print("TEST 1: Numerical values (high temperature)")

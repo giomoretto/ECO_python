@@ -7,7 +7,7 @@ import numpy as np
 from typing import Optional, Dict, Any
 import sys
 sys.path.insert(0, '/home/morettog/projects/phd/python_code')
-from eco.model.subfunctions.in_cylinder import cyl_vol, static_cylinder_conditions
+from eco.model_casadi.subfunctions.in_cylinder import cyl_vol, static_cylinder_conditions
 
 
 class OperatingPoint:
@@ -125,7 +125,7 @@ class OperatingPoint:
         
         self.kappa_ivc, self.spec_r_ivc, self.theta_ivc, _, _, _, _ = \
             static_cylinder_conditions(0, self.p_int, self.v_int, 
-                                      par_model, temp_op, num_sym)
+                                      par_model, temp_op)
     
     def _calc_m_beta(self, v_int: float) -> float:
         """Calculate fresh charge mass

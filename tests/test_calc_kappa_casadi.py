@@ -9,7 +9,7 @@ try:
 except ImportError:
     CASADI_AVAILABLE = False
 
-from eco.model.subfunctions.in_cylinder import calc_kappa, calc_kappa_casadi
+from eco.model_casadi.subfunctions.in_cylinder import calc_kappa, calc_kappa_casadi
 
 
 @pytest.mark.skipif(not CASADI_AVAILABLE, reason="CasADi not available")

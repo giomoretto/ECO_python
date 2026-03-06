@@ -4,7 +4,7 @@ import numpy as np
 import sys
 sys.path.insert(0, '/home/morettog/projects/phd/python_code')
 
-from eco.model import ModelParameters
+from eco.model_casadi import ModelParameters
 from eco.simulation import par_op_def, complete_simulation
 
 

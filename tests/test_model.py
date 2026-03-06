@@ -4,12 +4,12 @@ import numpy as np
 import sys
 sys.path.insert(0, '/home/morettog/projects/phd/python_code')
 
-from eco.model import ModelParameters
-from eco.model.subfunctions.in_cylinder import cyl_vol, calc_kappa
-from eco.model.subfunctions.ignition_delay import saturate_input
-from eco.model.subfunctions.combustion import eval_comb_weighting_fun
-from eco.model.ignition_delay_joerg import ignition_delay_joerg
-from eco.model.algebraic_injector_model import algebraic_injector_model
+from eco.model_casadi import ModelParameters
+from eco.model_casadi.subfunctions.in_cylinder import cyl_vol, calc_kappa
+from eco.model_casadi.subfunctions.ignition_delay import saturate_input
+from eco.model_casadi.subfunctions.combustion import eval_comb_weighting_fun
+from eco.model_casadi.ignition_delay_joerg import ignition_delay_joerg
+from eco.model_casadi.algebraic_injector_model import algebraic_injector_model
 
 
 def test_model_parameters():

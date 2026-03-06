@@ -5,7 +5,7 @@ sys.path.insert(0, '/home/morettog/projects/phd/python_code')
 
 import numpy as np
 import casadi as ca
-from eco.model.subfunctions.in_cylinder import static_cylinder_conditions
+from eco.model_casadi.subfunctions.in_cylinder import static_cylinder_conditions
 
 print("="*60)
 print("Testing static_cylinder_conditions with num_sym parameter")

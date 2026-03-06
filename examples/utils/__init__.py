@@ -2,7 +2,7 @@
 
 import numpy as np
 import matplotlib.pyplot as plt
-from eco.model.utils import injection_pattern
+from eco.model_casadi.utils import injection_pattern
 
 
 def plot_results(simout, par_op, soe, doe):
