@@ -8,7 +8,7 @@ wraps them into an ``AcadosModel`` that can be used directly with
 import casadi as ca
 from acados_template import AcadosModel
 from eco.model_casadi.model_parameters import ModelParameters
-from .complete_model import complete_model
+from eco.model_casadi.complete_model import complete_model
 
 
 def export_complete_model(par_model: ModelParameters,

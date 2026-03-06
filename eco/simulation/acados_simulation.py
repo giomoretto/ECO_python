@@ -11,7 +11,7 @@ from typing import Dict, Any
 from acados_template import AcadosSim, AcadosSimSolver
 
 from eco.model_casadi.model_parameters import ModelParameters
-from eco.model_casadi.export_complete_model import export_complete_model
+from .export_complete_model import export_complete_model
 from eco.model_casadi.complete_model import complete_model as complete_model_casadi
 import casadi as ca
 

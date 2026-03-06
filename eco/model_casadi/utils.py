@@ -1,6 +1,5 @@
 """Utility functions for model validation (CasADi version)"""
 
-import numpy as np
 import casadi as ca
 from .subfunctions.in_cylinder import cyl_vol
 from .subfunctions.ignition_delay import saturate_input
@@ -44,39 +43,3 @@ def check_validity(x, ca_deg, par_model, par_op, en_nox):
         return ca.vertcat(p_cyl, q_comb, imep, theta_uz, nox)
     else:
         return ca.vertcat(p_cyl, q_comb, imep)
-
-
-def injection_pattern(soe: np.ndarray, doe: np.ndarray, eng_spd: float,
-                      ca_min: float = -30, ca_max: float = 50):
-    """Convert SOE/DOE inputs to an injection pulse pattern in crank angle.
-
-    Args:
-        soe: Start of energizing per injection [degCA aTDC], shape (n_inj,)
-        doe: Duration of energizing per injection [µs], shape (n_inj,)
-        eng_spd: Engine speed [1/s]
-        ca_min: Crank angle lower bound for the pattern [degCA]
-        ca_max: Crank angle upper bound for the pattern [degCA]
-
-    Returns:
-        ca_pattern: Crank angle vector for plotting (step-wise)
-        u_pattern: Injection pulse signal (1 = injecting, 0 = off)
-    """
-    soe = np.atleast_1d(np.asarray(soe, dtype=float))
-    doe = np.atleast_1d(np.asarray(doe, dtype=float))
-
-    # DOE [µs] -> crank angle duration [degCA]:  1e-6 * rpm/60 * 360
-    rpm = eng_spd * 60  # [1/min]
-    t2ca = 1e-6 * rpm / 60 * 360  # [degCA/µs]
-
-    # Build step-wise pattern: for each injection create
-    #   ca_min -> SOE (off),  SOE -> SOE+DOE*t2ca (on),  then off until next
-    ca_pts = [ca_min]
-    u_pts = [0]
-    for s, d in sorted(zip(soe, doe), key=lambda x: x[0]):
-        eoe = s + d * t2ca  # end of energizing [degCA]
-        ca_pts.extend([s, s, eoe, eoe])
-        u_pts.extend([0, 1, 1, 0])
-    ca_pts.append(ca_max)
-    u_pts.append(0)
-
-    return np.array(ca_pts), np.array(u_pts)
