@@ -1,7 +1,6 @@
 """Complete simulation using AcadosSim integrator.
 
-This module provides the same functionality as ``complete_simulation``
-but uses the acados ``AcadosSimSolver`` (compiled C integrator) instead
+This module provides uses the acados ``AcadosSimSolver`` (compiled C integrator) instead
 of a hand-coded Python RK4/Euler loop.
 """
 
