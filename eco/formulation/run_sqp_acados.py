@@ -14,7 +14,15 @@ from eco.formulation.scale_unscale import scale_unscale
 def run_sqp_acados_inj_opt(ocp: Any, fcn: Dict,
                            par_model: Any, par_sim: Any,
                            par_opt: Any) -> Tuple[np.ndarray, int, Dict]:
-    """Run SQP optimization with acados
+    """Run SQP optimization with acados.
+
+    State/control layout (see create_acados_ocp.py docstring):
+      x = [pCyl_s, QComb_s, IMEP_s, Theta_s, NO_s, ca_s, u_shadow_s]  (nx_full)
+      u = [SOE1_s, SOE2_s, DOE1_s, DOE2_s]  (nu)
+
+    The stage linking constraint (u_k = u_shadow_k) forces u to be
+    (up to solver tolerance) identical at every node, so any stage's u can
+    be read out as "the" optimal injection timing.
 
     Args:
         ocp: Acados OCP solver object
@@ -45,17 +53,14 @@ def run_sqp_acados_inj_opt(ocp: Any, fcn: Dict,
         return par_opt.u0, -1, {}
 
     N = len(par_opt.ca) - 1
-    n_states = par_model.n_states
-    nx = fcn['nx']
-    nu = fcn['nu']
+    n_states = fcn['n_states']
+    n_inputs = fcn['n_inputs']
+    nx = fcn['nx_full']
 
-    # ---- extract scaled solution
+    # ---- extract solution (state layout: [u; x_phys; ca], no controls)
     x_traj_s = np.zeros((nx, N + 1))
-    u_traj_s = np.zeros((nu, N))
     for i in range(N + 1):
         x_traj_s[:, i] = ocp.get(i, 'x')
-    for i in range(N):
-        u_traj_s[:, i] = ocp.get(i, 'u')
 
     # ---- print status
     status_text = {
@@ -65,7 +70,7 @@ def run_sqp_acados_inj_opt(ocp: Any, fcn: Dict,
         3: "3 - 'minimum step size in QP solver reached'",
         4: "4 - 'qp solver failed'",
     }
-    print(f"Status: {status_text.get(status, f'{status} - unknown')}")
+    print(f"  Status: {status_text.get(status, f'{status} - unknown')}")
 
     try:
         sqp_iter = ocp.get_stats('sqp_iter')
@@ -73,12 +78,12 @@ def run_sqp_acados_inj_opt(ocp: Any, fcn: Dict,
         time_lin = ocp.get_stats('time_lin')
         time_sim = ocp.get_stats('time_sim')
         time_qp = ocp.get_stats('time_qp_sol')
-        print(f"Total CPU Time: {time_tot*1000:.2f} ms for {sqp_iter} SQP Steps")
-        print(f"  linearization: {time_lin*1000:.2f} ms, "
+        print(f"  Total CPU Time: {time_tot*1000:.2f} ms for {sqp_iter} SQP Steps")
+        print(f"    linearization: {time_lin*1000:.2f} ms, "
               f"integrator: {time_sim*1000:.2f} ms, "
               f"QP solution: {time_qp*1000:.2f} ms")
     except Exception:
-        print("Timing information not available")
+        print("  Timing information not available")
 
     # ---- un-scale
     x_scale = fcn['x_scale']
@@ -88,19 +93,24 @@ def run_sqp_acados_inj_opt(ocp: Any, fcn: Dict,
     ca_scale = fcn['ca_scale']
     ca_offs = fcn['ca_offs']
 
-    x_phys = x_traj_s[:n_states, :] * x_scale.reshape(-1, 1) + x_offs.reshape(-1, 1)
-    ca_phys = x_traj_s[n_states, :] * ca_scale[0] + ca_offs[0]
-    u_phys = u_traj_s * u_scale.reshape(-1, 1) + u_offs.reshape(-1, 1)
+    # state = [u(n_inputs); x_phys(n_states); ca]
+    u_traj_s = x_traj_s[:n_inputs, :]
+    x_phys_s = x_traj_s[n_inputs:n_inputs + n_states, :]
+    ca_s = x_traj_s[n_inputs + n_states, :]
 
-    # Optimal controls: take from first node (should be ~constant)
-    opt_vars = u_phys[:, 0]
+    u_phys = u_traj_s * u_scale.reshape(-1, 1) + u_offs.reshape(-1, 1)
+    x_phys = x_phys_s * x_scale.reshape(-1, 1) + x_offs.reshape(-1, 1)
+    ca_phys = ca_s * ca_scale[0] + ca_offs[0]
+
+    # Injection inputs have zero dynamics, so they are identical at every node;
+    # read them off the terminal node (matching MATLAB xtraj(1:nInputs,end)).
+    opt_vars = u_phys[:, -1]
 
     result = {
         'u': u_phys,
         'x': x_phys,
         'ca': ca_phys,
         'x_scaled': x_traj_s,
-        'u_scaled': u_traj_s,
     }
 
     return opt_vars, status, result
