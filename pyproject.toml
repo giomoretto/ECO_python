@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "eco"
+version = "0.1.0"
+description = "Economic Combustion Optimization: optimal injector inputs for direct-injection compression-ignition engines"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [{ name = "morettog", email = "morettog@users.noreply.github.com" }]
+keywords = ["optimal control", "acados", "combustion", "diesel engine", "calibration"]
+
+# NOTE: acados_template is deliberately NOT listed here. It must match the
+# compiled acados C library and is therefore installed editable from the tree
+# pointed at by ACADOS_SOURCE_DIR in .env:
+#     pip install -e $ACADOS_SOURCE_DIR/interfaces/acados_template
+dependencies = [
+    "numpy>=2.0",
+    "scipy>=1.13",
+    "matplotlib>=3.8",
+    "casadi>=3.7",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[project.urls]
+Paper = "https://doi.org/10.1016/j.conengprac.2024.105848"
+acados = "https://docs.acados.org/python_interface/index.html"
+
+[tool.setuptools.packages.find]
+include = ["eco*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

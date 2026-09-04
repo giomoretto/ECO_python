@@ -5,8 +5,6 @@ This module defines the operating point parameters for engine simulation.
 
 import numpy as np
 from typing import Optional, Dict, Any
-import sys
-sys.path.insert(0, '/home/morettog/projects/phd/python_code')
 from eco.model_casadi.subfunctions.in_cylinder import cyl_vol, static_cylinder_conditions
 
 

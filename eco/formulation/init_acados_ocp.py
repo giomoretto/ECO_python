@@ -13,11 +13,8 @@ so tightening a reference (e.g. NOx) is approached gradually. Only the
 constraint bounds (which carry the changing references) are refreshed each solve.
 """
 
-import sys
-
 import numpy as np
 
-sys.path.insert(0, '/home/morettog/projects/phd/python_code')
 from eco.formulation.scale_unscale import scale_unscale
 from eco.simulation.complete_simulation import complete_simulation
 

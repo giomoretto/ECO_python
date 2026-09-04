@@ -14,12 +14,14 @@ env/
 *.so
 *.dylib
 
-# Generated C code from acados
-c_generated_code/
-eco/formulation/c_generated_code/
+# Generated C code from acados (any location, any suffix)
+c_generated_code*/
 
 # acados JSON
 acados_sim.json
+
+# pytest
+.pytest_cache/
 
 # IDE
 .vscode/

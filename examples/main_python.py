@@ -12,22 +12,16 @@ Workflow:
 
 import sys
 import os
-import ctypes
 import numpy as np
 
-# ---- paths ----
+# ---- make the eco package importable no matter where this is run from ----
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-PROJECT_DIR = os.path.join(SCRIPT_DIR, '..')
+PROJECT_DIR = os.path.abspath(os.path.join(SCRIPT_DIR, '..'))
 sys.path.insert(0, PROJECT_DIR)
 
-# ---- load acados shared libraries ----
-ACADOS_PATH = '/home/morettog/projects/phd/acados'
-os.environ.setdefault('ACADOS_SOURCE_DIR', ACADOS_PATH)
-_acados_lib_dir = os.path.join(ACADOS_PATH, 'lib')
-for _lib in ['libblasfeo.so', 'libhpipm.so', 'libqpOASES_e.so', 'libacados.so']:
-    _p = os.path.join(_acados_lib_dir, _lib)
-    if os.path.isfile(_p):
-        ctypes.CDLL(_p, mode=ctypes.RTLD_GLOBAL)
+# ---- load acados (location from ACADOS_SOURCE_DIR, see eco/acados_env.py) ----
+from eco.acados_env import load_acados
+load_acados()
 
 from eco.model_casadi.model_parameters import ModelParameters
 from eco.simulation.par_op_def import OperatingPoint

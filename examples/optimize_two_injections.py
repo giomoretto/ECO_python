@@ -19,25 +19,20 @@ Uses the shared eco/formulation module for OCP creation/initialization/solving.
 
 import sys
 import os
-import ctypes
 import numpy as np
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+# ---- make the eco package importable no matter where this is run from ----
+sys.path.insert(0, os.path.abspath(
+    os.path.join(os.path.dirname(__file__), '..')))
 
-# ---- load acados shared libraries ----
-acados_path = '/home/morettog/projects/phd/acados'
-os.environ.setdefault('ACADOS_SOURCE_DIR', acados_path)
-_acados_lib_dir = os.path.join(acados_path, 'lib')
-for _lib in ['libblasfeo.so', 'libhpipm.so', 'libqpOASES_e.so', 'libacados.so']:
-    _p = os.path.join(_acados_lib_dir, _lib)
-    if os.path.isfile(_p):
-        ctypes.CDLL(_p, mode=ctypes.RTLD_GLOBAL)
+# ---- load acados (location from ACADOS_SOURCE_DIR, see eco/acados_env.py) ----
+from eco.acados_env import load_acados
+load_acados()
 
 from eco.model_casadi.model_parameters import ModelParameters
 from eco.simulation.par_op_def import OperatingPoint
 from eco.simulation.acados_simulation import acados_simulation
 from eco.formulation.create_acados_ocp import create_acados_functions_inj_opt
-from eco.formulation.init_acados_ocp import create_init_acados_ocp_inj_opt
 from eco.formulation.run_sqp_acados import run_sqp_acados_inj_opt
 
 
@@ -79,11 +74,11 @@ class OptimizationParameters:
 
         # MATLAB-standard constraint references
         self.reference = {
-            'imep': 6e5,        # target IMEP [Pa]
+            'imep': 8e5,        # target IMEP [Pa]
             'dp_max': 4e5,      # max pressure rise rate [Pa/degCA]
             'p_max': 150e5,     # max cylinder pressure [Pa]
-            't_min': 500 + 273,   # min exhaust temperature [K]
-            'c_nox': 1e4,       # max NOx [ppm]
+            't_min': 700 + 273,   # min exhaust temperature [K]
+            'c_nox': 2e3,       # max NOx [ppm]
             'coc_max': 20,      # latest center of combustion [degCA aTDC]
             'phi_max': 1 / 1.3, # max equivalence ratio
         }
@@ -114,7 +109,7 @@ def main():
     print(f'  IMEP constraint:  ≥ {IMEP_REF / 1e5:.1f} bar (at EVO)')
     print(f'  dp/dφ constraint: ≤ {DP_MAX / 1e5:.1f} bar/degCA (slacked)')
     print(f'  OCP window:       [{CA_OCP_START}, {CA_OCP_END}] degCA aTDC')
-    print(f'  Injections:       {N_INJ} (with linking constraint u_k ≡ u0)')
+    print(f'  Injections:       {N_INJ} (inputs constant over the horizon)')
 
     # ---- Model & operating point ----
     par_model = ModelParameters()
@@ -126,6 +121,19 @@ def main():
 
     # ---- Optimization parameters ----
     par_opt = OptimizationParameters()
+
+    # Extend the OCP grid past the optimisation window to EVO with coarse
+    # steps (matching init_ocp.m), so the terminal constraints (IMEP, Tevo,
+    # NOx) are enforced at exhaust-valve opening. Without this, IMEP >= 6 bar
+    # is imposed mid-expansion (at 26° IMEP is still negative) and the QP is
+    # infeasible.
+    delta_phi_acados = 3.0
+    ca_acados = np.arange(par_opt.ca[-1] + delta_phi_acados,
+                          par_op.ca_evo + delta_phi_acados * 0.5,
+                          delta_phi_acados)
+    par_opt.ca = np.concatenate([par_opt.ca, ca_acados])
+    print(f'  OCP horizon: {par_opt.ca[0]:.1f}° -> {par_opt.ca[-1]:.1f}° '
+          f'({len(par_opt.ca)} nodes; terminal at EVO)')
 
     # ---- Simulation helper ----
     class SimParams:
@@ -178,48 +186,71 @@ def main():
         print('FATAL: OCP solver creation failed.')
         return None, None, None, None
 
-    # Initialize with simulation baseline
-    ocp_solver = create_init_acados_ocp_inj_opt(
-        ocp_solver, fcn, par_model, par_sim, par_opt
-    )
-
-    # Solve
-    u_opt, status, result = run_sqp_acados_inj_opt(
-        ocp_solver, fcn, par_model, par_sim, par_opt
-    )
-
     _status_map = {
         0: 'success', 1: 'failure', 2: 'max iter',
         3: 'min step', 4: 'QP fail',
     }
-    print(f'  Status: {status} – {_status_map.get(status, "unknown")}')
 
-    if status != 0:
-        print('Optimization failed; aborting.')
+    # Warm-start homotopy: aggressive constraints can be infeasible from a cold
+    # start, so ramp the tightened references from loose (inactive) values to
+    # their targets, warm-starting each solve from the previous one. The init
+    # sets the initial trajectory only once and never resets, so acados keeps
+    # the previous solution as its guess (mirrors main_python's Pareto sweeps).
+    targets = {k: par_opt.reference[k] for k in ('imep', 't_min', 'c_nox')}
+    loose = {
+        'imep':  min(6e5, targets['imep']),       # IMEP >= : start <= 6 bar
+        't_min': min(0 + 273, targets['t_min']),  # Tevo >= : start inactive
+        'c_nox': max(1e4, targets['c_nox']),      # NOx  <= : start inactive
+    }
+    n_homotopy = 6
+
+    _hdr('Phase 2: homotopy solve (loose -> target constraints)')
+    last_good = None
+    for step in range(n_homotopy + 1):
+        a = step / n_homotopy
+        for key in targets:
+            par_opt.reference[key] = loose[key] + a * (targets[key] - loose[key])
+        u_opt, status, result = run_sqp_acados_inj_opt(
+            ocp_solver, fcn, par_model, par_sim, par_opt)
+        print(f'  {a * 100:5.1f}%  IMEP>={par_opt.reference["imep"] / 1e5:.1f}bar  '
+              f'Tevo>={par_opt.reference["t_min"] - 273:.0f}C  '
+              f'NOx<={par_opt.reference["c_nox"]:.0f}ppm  '
+              f'-> status {status} ({_status_map.get(status, "?")})')
+        if status == 0:
+            last_good = (u_opt, result, dict(par_opt.reference))
+        else:
+            print(f'\n  Homotopy stalled at {a * 100:.0f}% toward the target; the '
+                  f'remaining tightening looks infeasible for this operating '
+                  f'point. Reporting the tightest feasible solution reached.')
+            break
+
+    if last_good is None:
+        print('Optimization failed even at the loosest constraints; aborting.')
         return None, None, None, None
+    u_opt, result, achieved = last_good
+    par_opt.reference.update(achieved)   # report the constraints actually met
 
-    # Extract trajectory from result
-    x_ocp = result['x']
+    # Optimal injection inputs at every OCP node (constant: zero-dynamics states)
     u_ocp = result['u']
-    ca_ocp_sol = result['ca']
 
     # ===================================================================
-    #  Phase 3: Post-integration from OCP end to EVO
+    #  Phase 3: fresh full-cycle simulation (IVC → EVO) with optimal u
     # ===================================================================
-    _hdr('Phase 3: OCP end → EVO')
-    ca_post = np.arange(CA_OCP_END + DELTA_PHI, par_op.ca_evo + DELTA_PHI, DELTA_PHI)
-    x0_post = x_ocp[:, -1]  # state at OCP_END
-    u_post = np.tile(u_opt, (len(ca_post), 1)).T  # use optimal controls
-
-    sim_post = acados_simulation(ca_post, x0_post, u_post, par_sim, par_model)
-    print(f'  Integrated {CA_OCP_END}° → {par_op.ca_evo}° (EVO)')
-    print(f'  x at EVO: p={sim_post["x"][0, -1] / 1e5:.1f} bar, '
-          f'Qcomb={sim_post["x"][1, -1]:.1f} J, IMEP={sim_post["x"][2, -1] / 1e5:.3f} bar')
-
-    # ---- Combine full trajectory (Phase 1 + OCP + Phase 3) ----
-    ca_full = np.concatenate([sim_pre['ca'], ca_ocp_sol[1:], sim_post['ca']])
-    x_full = np.concatenate([sim_pre['x'], x_ocp[:, 1:], sim_post['x']], axis=1)
-    dp_ocp = np.diff(x_ocp[0, :]) / DELTA_PHI
+    # The OCP already integrates to EVO, so re-simulate the whole cycle at
+    # fine resolution with the optimal injection inputs to read off the
+    # constrained quantities (matching MATLAB pareto_*.m).
+    _hdr('Phase 3: full-cycle simulation (IVC → EVO)')
+    ca_full = np.arange(par_op.ca_ivc, par_op.ca_evo + DELTA_PHI, DELTA_PHI)
+    x0_full = np.array([par_op.p_int, 0.0, 0.0, par_op.theta_ivc, 0.0]) \
+        if EN_NOX else np.array([par_op.p_int, 0.0, 0.0])
+    u_full = np.tile(u_opt, (len(ca_full), 1)).T
+    sim_full = acados_simulation(ca_full, x0_full, u_full, par_sim, par_model)
+    x_full = sim_full['x']
+    y_full = sim_full['y']
+    dp_full = np.diff(x_full[0, :]) / DELTA_PHI
+    print(f'  Simulated {par_op.ca_ivc}° → {par_op.ca_evo}° (EVO)')
+    print(f'  x at EVO: p={x_full[0, -1] / 1e5:.1f} bar, '
+          f'Qcomb={x_full[1, -1]:.1f} J, IMEP={x_full[2, -1] / 1e5:.3f} bar')
 
     # ---- Results ----
     _hdr('Results (full cycle IVC → EVO)')
@@ -229,27 +260,28 @@ def main():
     print()
     print(f'  Q_comb (EVO):     {x_full[1, -1]:.1f} J  (fuel objective)')
     print(f'  IMEP (EVO):       {x_full[2, -1] / 1e5:.2f} bar  '
-          f'(constraint ≥ {IMEP_REF / 1e5:.1f})')
+          f'(constraint ≥ {par_opt.reference["imep"] / 1e5:.1f})')
     print(f'  Peak p:           {np.max(x_full[0, :]) / 1e5:.1f} bar  '
           f'(limit {par_opt.reference["p_max"] / 1e5:.1f})')
-    print(f'  Max dp/dφ:        {np.max(dp_ocp) / 1e5:.2f} bar/degCA  '
+    print(f'  Max dp/dφ:        {np.max(dp_full) / 1e5:.2f} bar/degCA  '
           f'(limit {DP_MAX / 1e5:.1f})')
+    print(f'  Tevo (EVO):       {y_full[0, -1] - 273:.1f} °C  '
+          f'(constraint ≥ {par_opt.reference["t_min"] - 273:.0f})')
     if EN_NOX:
-        print(f'  NOx (EVO):        {x_full[4, -1] * 1e6:.2f} ppm  '
+        print(f'  NOx (EVO):        {y_full[8, -1]:.1f} ppm  '
               f'(limit {par_opt.reference["c_nox"]:.0f})')
 
-    # ---- Check control consistency across OCP stages ----
-    # With the linking constraint u_k = u_shadow_k, all stages should
-    # agree to solver tolerance (< 1e-4), not just within 1.0 unit warning.
+    # ---- Check the injection inputs are constant across the horizon ----
+    # They are zero-dynamics states, so every node must agree to solver tol.
     u_spread = np.max(u_ocp, axis=1) - np.min(u_ocp, axis=1)
     if np.any(u_spread > 0.01):
-        print('\n  ⚠ Controls vary across stages (spread per channel):')
+        print('\n  ⚠ Inputs vary across stages (spread per channel):')
         labels = [f'SOE_{i+1}' for i in range(N_INJ)] + \
                  [f'DOE_{i+1}' for i in range(N_INJ)]
-        for i, (lbl, sp) in enumerate(zip(labels, u_spread)):
+        for lbl, sp in zip(labels, u_spread):
             print(f'    {lbl}: {sp:.4f}')
     else:
-        print('\n  ✓ Linking constraint held: all stages agree on u (spread < 0.01)')
+        print('\n  ✓ Injection inputs constant across the horizon (spread < 0.01)')
 
     return u_opt, x_full, ca_full, u_ocp
 

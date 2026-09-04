@@ -6,7 +6,15 @@ with a fully symbolic CasADi model solved via acados.
 """
 
 import sys
-sys.path.insert(0, '/home/morettog/projects/phd/python_code')
+import os
+
+# ---- make the eco package importable no matter where this is run from ----
+sys.path.insert(0, os.path.abspath(
+    os.path.join(os.path.dirname(__file__), '..')))
+
+# ---- load acados (location from ACADOS_SOURCE_DIR, see eco/acados_env.py) ----
+from eco.acados_env import load_acados
+load_acados()
 
 import numpy as np
 from eco.model_casadi.model_parameters import ModelParameters

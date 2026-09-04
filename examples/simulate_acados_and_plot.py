@@ -2,15 +2,15 @@
 """Simulate the complete engine model with acados and plot results."""
 
 import sys
-sys.path.insert(0, '/home/morettog/projects/phd/python_code')
-
 import os
-import ctypes
-acados_path = '/home/morettog/projects/phd/acados'
-os.environ.setdefault('ACADOS_SOURCE_DIR', acados_path)
-acados_lib = os.path.join(acados_path, 'lib')
-for lib in ['libblasfeo.so', 'libhpipm.so', 'libqpOASES_e.so', 'libacados.so']:
-    ctypes.CDLL(os.path.join(acados_lib, lib), mode=ctypes.RTLD_GLOBAL)
+
+# ---- make the eco package importable no matter where this is run from ----
+sys.path.insert(0, os.path.abspath(
+    os.path.join(os.path.dirname(__file__), '..')))
+
+# ---- load acados (location from ACADOS_SOURCE_DIR, see eco/acados_env.py) ----
+from eco.acados_env import load_acados
+load_acados()
 
 import numpy as np
 from eco.model_casadi.model_parameters import ModelParameters

@@ -5,8 +5,6 @@ This module handles running the SQP optimization and extracting results.
 
 import numpy as np
 from typing import Tuple, Any, Dict
-import sys
-sys.path.insert(0, '/home/morettog/projects/phd/python_code')
 from eco.formulation.init_acados_ocp import create_init_acados_ocp_inj_opt
 from eco.formulation.scale_unscale import scale_unscale
 

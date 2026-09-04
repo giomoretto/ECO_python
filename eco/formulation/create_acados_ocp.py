@@ -20,12 +20,10 @@ Mirrors the MATLAB ``createAcadosFunctions_InjOpt.m`` transcription exactly:
 
 import numpy as np
 import os
-import sys
 from typing import Tuple, Any, Dict
 from acados_template import AcadosOcp, AcadosOcpSolver, AcadosModel
 import casadi as ca
 
-sys.path.insert(0, '/home/morettog/projects/phd/python_code')
 from eco.formulation.casadi_model import complete_model_sym
 from eco.formulation.scale_unscale import scale_unscale
 from eco.model_casadi.algebraic_injector_model import algebraic_injector_model

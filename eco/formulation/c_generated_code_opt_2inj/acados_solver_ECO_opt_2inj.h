@@ -64,7 +64,7 @@
 #define ECO_OPT_2INJ_NY0    0
 #define ECO_OPT_2INJ_NY     0
 #define ECO_OPT_2INJ_NYN    0
-#define ECO_OPT_2INJ_N      72
+#define ECO_OPT_2INJ_N      115
 #define ECO_OPT_2INJ_NH     3
 #define ECO_OPT_2INJ_NHN    5
 #define ECO_OPT_2INJ_NH0    0
