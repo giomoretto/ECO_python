@@ -112,7 +112,7 @@ bar/degCA (`dpCyl` in the code).
 | Center of combustion | $Q_\mathrm{comb} \ge Q_\mathrm{tot}/2$ for $\varphi \ge \mathrm{CoC}_\mathrm{max}$ | 20 degCA aTDC | path constraint | — |
 | Indicated mean effective pressure | $\mathrm{IMEP} \ge \mathrm{IMEP}_\mathrm{ref}$ | 6 bar | terminal constraint | — |
 | Exhaust gas temperature | $\Theta_\mathrm{EVO} \ge \Theta_\mathrm{min}$ | swept (0…540 °C) | terminal constraint | — |
-| NOx concentration | $0 \le \mathrm{NO}_\mathrm{ppm} \le c_{\mathrm{NO}_x}$ | swept (10000…900 ppm) | terminal constraint | yes |
+| NOx concentration | $0 \le NO_{\mathrm{ppm}} \le c_{\mathrm{NO}_x}$ | swept (10000…900 ppm) | terminal constraint | yes |
 | Equivalence ratio | $0 \le \Phi \le \Phi_\mathrm{max}$ | 1/1.3 | terminal constraint | — |
 | Injection spacing | $b_{\mathrm{inj},i} \ge 0$ | $\Delta t_\mathrm{inj} = 400$ µs | terminal constraint | — |
 
